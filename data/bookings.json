@@ -1,0 +1,151 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import type { BookingRecord } from '@/lib/bookings';
+
+export default function AdminBookingsTable({ bookings }: { bookings: BookingRecord[] }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [tourFilter, setTourFilter] = useState('All tours');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [items, setItems] = useState(bookings);
+
+  const tours = useMemo(() => ['All tours', ...new Set(items.map((booking) => booking.tour))], [items]);
+
+  const filteredBookings = useMemo(() => {
+    const next = items.filter((booking) => {
+      const matchesSearch =
+        booking.reference.toLowerCase().includes(search.toLowerCase()) ||
+        booking.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        booking.email.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === 'All' || booking.bookingStatus === statusFilter || booking.paymentStatus === statusFilter;
+      const matchesTour = tourFilter === 'All tours' || booking.tour === tourFilter;
+      return matchesSearch && matchesStatus && matchesTour;
+    });
+
+    return [...next].sort((a, b) => {
+      if (sortBy === 'date') return new Date(b.travelDate).getTime() - new Date(a.travelDate).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [items, search, statusFilter, tourFilter, sortBy]);
+
+  async function updateStatus(id: string, paymentStatus?: string, bookingStatus?: string) {
+    const res = await fetch(`/api/bookings/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentStatus, bookingStatus }),
+    });
+
+    if (!res.ok) {
+      alert('Unable to update booking status.');
+      return;
+    }
+
+    const updated = await res.json();
+    setItems((current) => current.map((item) => (item.id === id ? updated.booking : item)));
+  }
+
+  const totals = items.reduce(
+    (summary, booking) => {
+      summary.bookings += 1;
+      summary.revenue += Number(booking.totalPrice || 0);
+      if (booking.bookingStatus === 'Pending') summary.pending += 1;
+      return summary;
+    },
+    { bookings: 0, revenue: 0, pending: 0 }
+  );
+
+  return (
+    <div className="admin-shell">
+      <div className="stats-grid">
+        <div className="stat-card">
+          <span>Total bookings</span>
+          <strong>{totals.bookings}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Revenue</span>
+          <strong>${totals.revenue}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Pending</span>
+          <strong>{totals.pending}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Upcoming trips</span>
+          <strong>{items.filter((booking) => new Date(booking.travelDate) > new Date()).length}</strong>
+        </div>
+      </div>
+
+      <div className="table-controls">
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search bookings" />
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="All">All status</option>
+          <option value="Pending">Pending</option>
+          <option value="Paid">Paid</option>
+          <option value="Confirmed">Confirmed</option>
+        </select>
+        <select value={tourFilter} onChange={(event) => setTourFilter(event.target.value)}>
+          {tours.map((tour) => (
+            <option key={tour} value={tour}>
+              {tour}
+            </option>
+          ))}
+        </select>
+        <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+          <option value="createdAt">Newest</option>
+          <option value="date">Travel date</option>
+        </select>
+      </div>
+
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Customer</th>
+              <th>Tour</th>
+              <th>Date</th>
+              <th>Travelers</th>
+              <th>Total</th>
+              <th>Payment</th>
+              <th>Booking</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBookings.map((booking) => (
+              <tr key={booking.id}>
+                <td>{booking.reference}</td>
+                <td>{booking.customerName}</td>
+                <td>{booking.tour}</td>
+                <td>{new Date(booking.travelDate).toLocaleDateString()}</td>
+                <td>{booking.travelers}</td>
+                <td>${booking.totalPrice}</td>
+                <td>{booking.paymentStatus}</td>
+                <td>{booking.bookingStatus}</td>
+                <td>{new Date(booking.createdAt).toLocaleDateString()}</td>
+                <td>
+                  <div className="action-stack">
+                    <button type="button" onClick={() => alert(`Booking ${booking.reference}\n${booking.customerName}\n${booking.email}`)}>
+                      View
+                    </button>
+                    <button type="button" onClick={() => updateStatus(booking.id, booking.paymentStatus, 'Confirmed')}>
+                      Confirm
+                    </button>
+                    <button type="button" onClick={() => updateStatus(booking.id, booking.paymentStatus, 'Cancelled')}>
+                      Cancel
+                    </button>
+                    <button type="button" onClick={() => updateStatus(booking.id, 'Paid', booking.bookingStatus)}>
+                      Mark paid
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
