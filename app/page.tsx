@@ -1,206 +1,173 @@
-'use client';
+import Link from 'next/link';
+import Image from 'next/image';
+import { destinations, testimonials, tours } from '@/data/site';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { tours } from '@/data/site';
-
-export default function PaymentPage() {
-  const params = useSearchParams();
-  const selectedTour = tours.find((tour) => tour.slug === params.get('tour')) || tours[0];
-  const defaultTravelers = Number(params.get('travelers') || '2');
-  const defaultDate = params.get('date') || '';
-
-  const [travelDate, setTravelDate] = useState(defaultDate);
-  const [travelers, setTravelers] = useState(defaultTravelers);
-  const [customerName, setCustomerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [nationality, setNationality] = useState('');
-  const [specialRequests, setSpecialRequests] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [submitted, setSubmitted] = useState(false);
-  const [bookingReference, setBookingReference] = useState('');
-
-  const subtotal = useMemo(() => selectedTour.price * travelers, [selectedTour.price, travelers]);
-  const taxes = Math.round(subtotal * 0.08);
-  const total = subtotal + taxes;
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const response = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tour: selectedTour.title,
-        customerName,
-        email,
-        phone,
-        nationality,
-        travelDate,
-        travelers,
-        totalPrice: total,
-        specialRequests,
-      }),
-    });
-
-    if (!response.ok) {
-      alert('Unable to create booking. Please try again.');
-      return;
-    }
-
-    const data = await response.json();
-    setBookingReference(data.booking.reference);
-    setSubmitted(true);
-  }
-
-  if (submitted) {
-    return (
-      <section className="section container narrow">
-        <div className="confirmation-card">
-          <p className="eyebrow text-accent">Booking confirmed</p>
-          <h1>Thanks, {customerName || 'traveler'}.</h1>
-          <p>Your booking reference is <strong>{bookingReference}</strong>.</p>
-          <p>A confirmation email has been sent to <strong>{email}</strong>.</p>
-          <a href="/tours" className="button primary">
-            Explore more journeys
-          </a>
-        </div>
-      </section>
-    );
-  }
+export default function HomePage() {
+  const featuredTours = tours.filter((tour) => tour.featured);
 
   return (
-    <section className="section container payment-layout">
-      <div className="payment-main">
-        <p className="eyebrow text-accent">Booking & payment</p>
-        <h1>Reserve your Cambodia adventure</h1>
-
-        <div className="stepper">
-          <span className="active">Review</span>
-          <span>Traveler details</span>
-          <span>Payment</span>
-        </div>
-
-        <form onSubmit={handleSubmit} className="booking-form">
-          <div className="content-block">
-            <h2>1. Review your trip</h2>
-            <div className="trip-summary">
-              <div>
-                <span>Tour</span>
-                <strong>{selectedTour.title}</strong>
-              </div>
-              <div>
-                <span>Date</span>
-                <strong>{travelDate || 'Select a date'}</strong>
-              </div>
-              <div>
-                <span>Travelers</span>
-                <strong>{travelers}</strong>
-              </div>
-            </div>
+    <>
+      <section className="hero-section">
+        <div className="hero-overlay" />
+        <div className="hero-content container">
+          <p className="eyebrow">A journey through living heritage</p>
+          <h1>Discover the Soul of Cambodia</h1>
+          <p className="hero-subtitle">
+            Explore ancient temples, riverside towns, island escapes, and warm local hospitality with expertly curated adventures.
+          </p>
+          <div className="hero-actions">
+            <Link href="/tours" className="button primary">
+              Explore Journeys
+            </Link>
+            <Link href="/destinations" className="button secondary light">
+              View Destinations
+            </Link>
           </div>
-
-          <div className="content-block">
-            <h2>2. Traveler details</h2>
-            <div className="form-grid">
-              <div className="field-group">
-                <label htmlFor="name">Full name</label>
-                <input id="name" type="text" value={customerName} onChange={(event) => setCustomerName(event.target.value)} required />
-              </div>
-              <div className="field-group">
-                <label htmlFor="email">Email</label>
-                <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-              </div>
-              <div className="field-group">
-                <label htmlFor="phone">Phone</label>
-                <input id="phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} required />
-              </div>
-              <div className="field-group">
-                <label htmlFor="nationality">Nationality</label>
-                <input id="nationality" type="text" value={nationality} onChange={(event) => setNationality(event.target.value)} required />
-              </div>
-              <div className="field-group full-width">
-                <label htmlFor="requests">Special requests</label>
-                <textarea id="requests" rows={4} value={specialRequests} onChange={(event) => setSpecialRequests(event.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          <div className="content-block">
-            <h2>3. Payment</h2>
-            <div className="payment-options">
-              <label>
-                <input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
-                Credit / Debit Card
-              </label>
-              <label>
-                <input type="radio" name="payment" checked={paymentMethod === 'aba'} onChange={() => setPaymentMethod('aba')} />
-                ABA Pay
-              </label>
-              <label>
-                <input type="radio" name="payment" checked={paymentMethod === 'khqr'} onChange={() => setPaymentMethod('khqr')} />
-                KHQR
-              </label>
-            </div>
-
-            {paymentMethod === 'card' ? (
-              <div className="form-grid">
-                <div className="field-group full-width">
-                  <label htmlFor="card-number">Card number</label>
-                  <input id="card-number" type="text" placeholder="1234 5678 9012 3456" />
-                </div>
-                <div className="field-group">
-                  <label htmlFor="expiry">Expiry</label>
-                  <input id="expiry" type="text" placeholder="MM/YY" />
-                </div>
-                <div className="field-group">
-                  <label htmlFor="cvc">CVC</label>
-                  <input id="cvc" type="text" placeholder="123" />
-                </div>
-              </div>
-            ) : (
-              <div className="payment-placeholder">
-                <p>Local payment instructions will be displayed after confirmation.</p>
-              </div>
-            )}
-          </div>
-
-          <button type="submit" className="button primary block">
-            Pay ${total} USD
-          </button>
-        </form>
-      </div>
-
-      <aside className="detail-side">
-        <div className="sticky-card">
-          <h3>Price summary</h3>
-          <div className="price-summary-card">
+          <div className="hero-stats">
             <div>
-              <span>Subtotal</span>
-              <strong>${subtotal}</strong>
+              <strong>12+</strong>
+              <span>Years local expertise</span>
             </div>
             <div>
-              <span>Taxes</span>
-              <strong>${taxes}</strong>
+              <strong>4.9/5</strong>
+              <span>Traveler satisfaction</span>
             </div>
-            <div className="total-row">
-              <span>Total</span>
-              <strong>${total}</strong>
+            <div>
+              <strong>6K+</strong>
+              <span>Memories made</span>
             </div>
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="travel-date">Travel date</label>
-            <input id="travel-date" type="date" value={travelDate} onChange={(event) => setTravelDate(event.target.value)} required />
-          </div>
-
-          <div className="field-group">
-            <label htmlFor="travelers-count">Travelers</label>
-            <input id="travelers-count" type="number" min={1} value={travelers} onChange={(event) => setTravelers(Number(event.target.value) || 1)} />
           </div>
         </div>
-      </aside>
-    </section>
+      </section>
+
+      <section className="section container">
+        <div className="section-header split">
+          <div>
+            <p className="eyebrow text-accent">Featured Expeditions</p>
+            <h2>Handpicked journeys for curious travelers</h2>
+          </div>
+          <Link href="/tours" className="text-link">
+            See all journeys →
+          </Link>
+        </div>
+
+        <div className="tour-carousel">
+          {featuredTours.map((tour) => (
+            <article key={tour.slug} className="tour-card featured-tour">
+              <div className="tour-image-wrap">
+                <Image src={tour.images[0]} alt={tour.title} fill className="cover-image" />
+              </div>
+              <div className="tour-card-body">
+                <div className="meta-row">
+                  <span className="pill">{tour.destination}</span>
+                  <span className="rating">★ {tour.rating}</span>
+                </div>
+                <h3>{tour.title}</h3>
+                <div className="meta-row subtle">
+                  <span>{tour.duration} days</span>
+                  <span>From ${tour.price}</span>
+                </div>
+                <p>{tour.description}</p>
+                <Link href={`/tours/${tour.slug}`} className="text-link">
+                  Learn more →
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section alt-bg">
+        <div className="container">
+          <div className="section-header centered">
+            <p className="eyebrow text-accent">Why travelers choose us</p>
+            <h2>Thoughtful planning, unforgettable moments</h2>
+          </div>
+
+          <div className="feature-grid">
+            <div className="feature-card">
+              <span className="feature-icon">🧭</span>
+              <h3>Local expert guides</h3>
+              <p>Meet people who know Cambodia beyond the postcards, from hidden pagodas to family-run eateries.</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">🤝</span>
+              <h3>Small groups</h3>
+              <p>Enjoy a more personal journey with better access, deeper connection, and flexible pacing.</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">📅</span>
+              <h3>Flexible booking</h3>
+              <p>Adjust dates, add extras, and plan a trip that fits your travel rhythm with ease.</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">🔒</span>
+              <h3>Secure payment</h3>
+              <p>Book confidently with transparent pricing and trusted payment methods for every journey.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section container">
+        <div className="section-header split">
+          <div>
+            <p className="eyebrow text-accent">Popular destinations</p>
+            <h2>Explore Cambodia's most enchanting places</h2>
+          </div>
+          <Link href="/destinations" className="text-link">
+            Discover all destinations →
+          </Link>
+        </div>
+
+        <div className="destination-grid">
+          {destinations.map((destination) => (
+            <Link key={destination.name} href={`/destinations#${destination.slug}`} className="destination-card">
+              <div className="destination-image-wrap">
+                <Image src={destination.image} alt={destination.name} fill className="cover-image" />
+              </div>
+              <div className="destination-overlay">
+                <h3>{destination.name}</h3>
+                <span>{destination.blurb}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="section alt-bg">
+        <div className="container">
+          <div className="section-header centered">
+            <p className="eyebrow text-accent">Traveler stories</p>
+            <h2>Real moments from the road</h2>
+          </div>
+
+          <div className="testimonial-grid">
+            {testimonials.map((review) => (
+              <div key={review.name} className="testimonial-card">
+                <div className="stars">★★★★★</div>
+                <p>"{review.comment}"</p>
+                <div className="reviewer">
+                  <strong>{review.name}</strong>
+                  <span>{review.origin}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section container">
+        <div className="cta-banner">
+          <div>
+            <p className="eyebrow text-accent">Ready to begin?</p>
+            <h2>Plan your next unforgettable journey through Cambodia.</h2>
+          </div>
+          <Link href="/tours" className="button primary">
+            Start Planning
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }
